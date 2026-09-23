@@ -44,15 +44,15 @@ The key improvements are:
 
 ```mermaid
 flowchart LR
-    IN["data_in[15:0]"] --> QREG["Q Shift Register"]
-    IN --> MREG["M PIPO Register"]
-    AREG["A Shift Register"] -->|A[15]| ALU["ALU"]
+    IN("data_in") --> QREG("Q Shift Register")
+    IN --> MREG("M PIPO Register")
+    AREG("A Shift Register") -->|A15| ALU("ALU")
     MREG -->|M| ALU
     ALU -->|Z| AREG
-    QREG -->|Q[0]| QM1["QM1 FF"]
-    QREG -->|Q[0]| CTRL["Controller"]
+    QREG -->|Q0| QM1("QM1 FF")
+    QREG -->|Q0| CTRL("Controller")
     QM1 -->|qm1| CTRL
-    CNT["Counter"] -->|eqz| CTRL
+    CNT("Counter") -->|eqz| CTRL
 
     CTRL -->|ldA / sftA / clrA| AREG
     CTRL -->|ldQ / sftQ / clrQ| QREG
@@ -71,30 +71,36 @@ This datapath shows the main data flow used by Booth multiplication:
 ## Control Path and FSM
 
 ```mermaid
-stateDiagram-v2
-    [*] --> S0
+flowchart TD
+    S0("S0")
+    S1("S1")
+    S2("S2")
+    S3("S3")
+    S4("S4")
+    S5("S5")
+    S6("S6")
+    S7("S7")
+    S8("S8")
 
-    S0 --> S0: start = 0
-    S0 --> S1: start = 1
-
+    S0 -->|start = 0| S0
+    S0 -->|start = 1| S1
     S1 --> S2
     S2 --> S3
 
-    S3 --> S4: q0 = 0 and qm1 = 1
-    S3 --> S5: q0 = 1 and qm1 = 0
-    S3 --> S6: q0 = 0 and qm1 = 0
-    S3 --> S6: q0 = 1 and qm1 = 1
+    S3 -->|q0 = 0 & qm1 = 1| S4
+    S3 -->|q0 = 1 & qm1 = 0| S5
+    S3 -->|q0 = 0 & qm1 = 0| S6
+    S3 -->|q0 = 1 & qm1 = 1| S6
 
     S4 --> S6
     S5 --> S6
     S6 --> S7
 
-    S7 --> S4: q0 = 0 and qm1 = 1
-    S7 --> S5: q0 = 1 and qm1 = 0
-    S7 --> S6: q0 = 0 and qm1 = 0
-    S7 --> S6: q0 = 1 and qm1 = 1
-    S7 --> S8: default / iteration complete
-
+    S7 -->|q0 = 0 & qm1 = 1| S4
+    S7 -->|q0 = 1 & qm1 = 0| S5
+    S7 -->|q0 = 0 & qm1 = 0| S6
+    S7 -->|q0 = 1 & qm1 = 1| S6
+    S7 -->|default / eqz| S8
     S8 --> S0
 ```
 
