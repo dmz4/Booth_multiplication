@@ -1,5 +1,7 @@
 # Booth Multiplier RTL
 
+Repository description: 16-bit synthesizable Booth multiplier in Verilog with a latch-free FSM, datapath documentation, and verification bench.
+
 ## Overview
 
 This project implements a 16-bit Booth multiplier in Verilog as a synthesizable RTL design derived from the NPTEL course "Hardware Modeling using Verilog". The architecture here is an improved version that keeps the original algorithmic intent while removing simulation-only hazards and latch-prone control logic.

@@ -25,16 +25,24 @@ module controller (ldA, clrA, sftA, ldQ, clrQ, sftQ, ldM, clrff,
   output reg ldA, clrA, sftA, ldQ, clrQ, sftQ, ldM, clrff, addsub;
   output reg decr, ldcnt, done;
 
+  // Current FSM state and next-state register used to keep the control logic
+  // synchronous and deterministic across clock cycles.
   reg [3:0] state = 4'b0000;
   reg [3:0] new_state = 4'b0000;
 
+  // Booth controller state codes. These states represent the sequencing of
+  // initialization, decision, arithmetic update, shift, and completion.
   parameter S0 = 4'b0000, S1 = 4'b0001, S2 = 4'b0011;
   parameter S3 = 4'b0010, S4 = 4'b0110, S5 = 4'b0111;
   parameter S6 = 4'b0101, S7 = 4'b0100, S8 = 4'b1100;
 
+  // State register update: all FSM transitions happen on the rising edge of
+  // clk, keeping the control path synchronous.
   always @(posedge clk)
     state <= new_state;
 
+  // Next-state logic: computes the next FSM stage based on start, q0, qm1,
+  // and eqz. Default assignments prevent combinational latch inference.
   always @(*)
     begin
       // Default outputs are assigned first to prevent latch inference.
@@ -45,6 +53,7 @@ module controller (ldA, clrA, sftA, ldQ, clrQ, sftQ, ldM, clrff,
 
       case (state)
         S0: begin
+          // Clear the previous QM1 value while waiting for the start pulse.
           clrff = 1'b1;
           if (start)
             new_state = S1;
@@ -52,26 +61,34 @@ module controller (ldA, clrA, sftA, ldQ, clrQ, sftQ, ldM, clrff,
             new_state = S0;
         end
 
+        // After a start pulse, the controller moves into the loading stage.
         S1: new_state = S2;
 
+        // The multiplier register Q is loaded next.
         S2: new_state = S3;
 
+        // Booth decision stage: inspect the pair q0/qm1 to choose the ALU
+        // action for the current iteration.
         S3: begin
           case ({q0, qm1})
-            2'b01: new_state = S4;
-            2'b10: new_state = S5;
-            2'b11: new_state = S6;
-            2'b00: new_state = S6;
+            2'b01: new_state = S4;  // Add M when Q0=0 and QM1=1
+            2'b10: new_state = S5;  // Subtract M when Q0=1 and QM1=0
+            2'b11: new_state = S6;  // No-op for 11
+            2'b00: new_state = S6;  // No-op for 00
             default: new_state = S3;
           endcase
         end
 
+        // Add operation branch.
         S4: new_state = S6;
 
+        // Subtract operation branch.
         S5: new_state = S6;
 
+        // Shift stage: align the datapath for the next Booth iteration.
         S6: new_state = S7;
 
+        // Re-evaluate the next Booth decision after the shift.
         S7: begin
           case ({q0, qm1, eqz})
             3'b010: new_state = S4;
@@ -82,16 +99,19 @@ module controller (ldA, clrA, sftA, ldQ, clrQ, sftQ, ldM, clrff,
           endcase
         end
 
+        // End of operation: return to reset state.
         S8: new_state = S0;
 
         default: new_state = S0;
       endcase
 
       case (state)
+        // Idle state: reset the QM1 flag and wait for the start signal.
         S0: begin
           clrff = 1'b1;
         end
 
+        // Initialization stage: clear A, enable counter load, and load M.
         S1: begin
           clrA = 1'b1;
           clrff = 1'b0;
@@ -99,6 +119,7 @@ module controller (ldA, clrA, sftA, ldQ, clrQ, sftQ, ldM, clrff,
           ldM = 1'b1;
         end
 
+        // Load the multiplier into Q and prepare the datapath for iteration.
         S2: begin
           clrA = 1'b0;
           clrff = 1'b1;
@@ -107,6 +128,7 @@ module controller (ldA, clrA, sftA, ldQ, clrQ, sftQ, ldM, clrff,
           ldQ = 1'b1;
         end
 
+        // Hold the datapath steady while the Booth decision is evaluated.
         S3: begin
           clrA = 1'b0;
           clrff = 1'b0;
@@ -115,28 +137,33 @@ module controller (ldA, clrA, sftA, ldQ, clrQ, sftQ, ldM, clrff,
           ldQ = 1'b0;
         end
 
+        // Add M to A.
         S4: begin
           ldA = 1'b1;
           addsub = 1'b1;
         end
 
+        // Subtract M from A.
         S5: begin
           ldA = 1'b1;
           addsub = 1'b0;
         end
 
+        // Shift A and Q and decrement the loop counter.
         S6: begin
           sftA = 1'b1;
           sftQ = 1'b1;
           decr = 1'b1;
         end
 
+        // Hold the shifted state before re-evaluating the next Booth pair.
         S7: begin
           sftA = 1'b0;
           sftQ = 1'b0;
           decr = 1'b0;
         end
 
+        // Completion flag: indicate that the multiplication sequence is done.
         S8: begin
           done = 1'b1;
         end

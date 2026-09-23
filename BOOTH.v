@@ -26,29 +26,40 @@ module BOOTH (ldA, ldQ, ldM, clrA, clrQ, clrff, sftA, sftQ,
   input [15:0] data_in;
   output q0, qm1, eqz;
 
+  // Internal datapath buses: accumulator A, multiplicand M, multiplier Q,
+  // partial result Z, and the Booth iteration counter.
   wire [15:0] A, M, Q, Z;
   wire [4:0] count;
 
-  // This condition is asserted when the Booth iteration counter reaches zero.
+  // eqz is asserted when the Booth loop counter is zero, meaning the
+  // multiplication sequence is complete.
   assign eqz = ~|count;
+
+  // q0 exposes the least significant bit of the Q register so the control
+  // FSM can decide whether to add, subtract, or shift.
   assign q0 = Q[0];
 
-  // A-register routing for the accumulator update path.
+  // A-register: stores the partial accumulator and shifts it right while the
+  // Booth algorithm progresses.
   shiftreg AR (A, Z, A[15], clk, ldA, clrA, sftA);
 
-  // Q-register capture for the multiplicand operand and shift logic.
+  // Q-register: captures the multiplier operand and shifts it to update the
+  // Booth decision bits during each iteration.
   shiftreg QR (Q, data_in, A[0], clk, ldQ, clrQ, sftQ);
 
-  // QM1 stores the previous LSB of Q for Booth decision logic.
+  // QM1 captures the previous value of Q[0] so the FSM can detect the Booth
+  // transition pattern 01, 10, 00, or 11.
   dff QM1 (Q[0], qm1, clk, clrff);
 
-  // M is the multiplicand register with parallel load.
+  // Multiplicand register M is loaded in parallel and later used by the ALU.
   PIPO MR (M, data_in, clk, ldM);
 
-  // Arithmetic stage for add/subtract decisions.
+  // ALU computes either A + M or A - M depending on the control signal
+  // addsub. The result is stored in Z and fed back into A.
   ALU AS (Z, A, M, addsub);
 
-  // Iteration counter for the Booth sequence length.
+  // Counter tracks the remaining Booth iterations and is decremented each
+  // cycle while the FSM is active.
   counter CN (count, decr, ldcnt, clk);
 
 endmodule

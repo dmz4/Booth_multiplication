@@ -27,13 +27,17 @@ module testbench;
   wire ldA, clrA, sftA, ldQ, clrQ, sftQ, ldM, clrff, addsub;
   wire decr, ldcnt, q0, qm1, eqz;
 
+  // Instantiates the control FSM that generates the Booth control signals.
   controller CONTROL_PATH (ldA, clrA, sftA, ldQ, clrQ, sftQ, ldM,
                           clrff, addsub, start, decr, ldcnt, done,
                           clk, q0, qm1, eqz);
 
+  // Instantiates the datapath that performs the arithmetic and register
+  // shifting for the Booth multiplier.
   BOOTH DATAPATH (ldA, ldQ, ldM, clrA, clrQ, clrff, sftA, sftQ,
                   addsub, decr, ldcnt, data_in, clk, qm1, eqz, q0);
 
+  // Simulation setup: display key internal values and dump a VCD waveform.
   initial
     begin
       $monitor($time, "%b %b %b", DATAPATH.A, DATAPATH.Q, done);
@@ -44,6 +48,8 @@ module testbench;
       #1000 $finish;
     end
 
+  // Stimulus generation: assert the start signal and load the signed input
+  // values used to exercise the multiplier.
   initial
     begin
       #2 start = 1'b1;
@@ -52,6 +58,7 @@ module testbench;
       data_in = -91;
     end
 
+  // Free-running clock used to synchronize the control and datapath blocks.
   always #5 clk = ~clk;
 
 endmodule

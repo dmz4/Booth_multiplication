@@ -22,6 +22,10 @@ module shiftreg (data_out, data_in, s_in, clk, ld, clr, sft);
   input [15:0] data_in;
   output reg [15:0] data_out;
 
+  // Synchronous shift register used for the accumulator A and multiplier Q.
+  // When clr is asserted, it resets to zero; when ld is asserted, it loads
+  // data_in; when sft is asserted, it performs a right shift with s_in as the
+  // new MSB.
   always @(posedge clk)
     begin
       if (clr)
@@ -38,6 +42,7 @@ module PIPO (data_out, data_in, clk, load);
   input load, clk;
   output reg [15:0] data_out;
 
+  // Parallel-in register: stores the multiplicand M when load is high.
   always @(posedge clk)
     if (load)
       data_out <= data_in;
@@ -47,6 +52,7 @@ module dff (d, q, clk, clr);
   input d, clk, clr;
   output reg q;
 
+  // One-bit delay element used to store the previous Q bit in the QM1 stage.
   always @(posedge clk)
     if (clr)
       q <= 1'b0;
@@ -60,6 +66,8 @@ module ALU (out, in1, in2, addsub);
   input addsub;
   output reg [15:0] out;
 
+  // Booth arithmetic block: performs subtraction when addsub is 0 and
+  // addition when addsub is 1.
   always @(*)
     begin
       if (addsub == 1'b0)
@@ -75,6 +83,7 @@ module counter (data_out, decr, ldcnt, clk);
   input decr, clk, ldcnt;
   output reg [4:0] data_out = 5'b10000;
 
+  // 5-bit iteration counter used to track the remaining Booth cycles.
   always @(posedge clk)
     begin
       if (ldcnt)
