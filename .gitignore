@@ -1,0 +1,4 @@
+# Simulation artifacts
+*.vcd
+*.log
+booth_tb
